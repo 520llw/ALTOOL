@@ -1,0 +1,40 @@
+# IGBT 提参注意文档
+# 自监督优化循环自动生成
+# 最后更新: 2026-02-12 14:50 (第1轮)
+
+notes:
+- param: Eon 25℃
+  issue: 遗漏 - 开关特性25℃组(Eon/Eoff/Ets/td(on)/td(off)/tr/tf)常被整体遗漏
+  rule: 在Dynamic characteristics、Switching characteristics、Electrical characteristics等表格中，务必逐项搜索并提取：Turn-on energy→Eon 25℃、Turn-off energy→Eoff 25℃、Total switching energy→Ets 25℃、Rise time→tr 25℃、Fall time→tf 25℃、Turn-on delay time→tdon 25℃、Turn-off delay time→tdoff 25℃。若表格有多温度列，优先提取Tj=25℃或室温列。
+  verified: false
+  added_round: 1
+- param: Eoff 175℃
+  issue: 幻觉 - AI编造了PDF中不存在的参数值
+  rule: 严格禁止推断或计算参数值。只提取表格中明确标注为'Eoff'或'关断损耗'，并且温度条件明确为'175℃'、'Tj=175℃'或'Tvj=175℃'的数值。如果PDF中没有该温度条件下的Eoff数据，则必须返回null或空值，绝不允许使用其他温度下的值进行估算或编造。
+  verified: false
+  added_round: 1
+- param: LE
+  issue: 遗漏 - PDF中存在关键词'LE'但未提取，可能因为其含义不明确或位置特殊
+  rule: 将'LE'识别为关键参数名。在提取时，主动搜索包含'LE'的表格行、列标题或文本段落。其值通常为长度单位（如mm或μm）。提取规则为：定位包含'LE'的单元格，然后提取其相邻的数值单元格内容。
+  verified: false
+  added_round: 1
+- param: Erec 25℃
+  issue: 遗漏 - PDF中存在关键词'Erec'但未提取，可能因为温度条件不匹配或表格结构复杂
+  rule: 将'Erec'识别为关键参数名，代表'反向恢复损耗'。提取时：1）优先在'Switching Characteristics'或'Diode reverse recovery'相关表格中，精确查找包含'Erec'或'Reverse recovery energy'的行；2）在该行中，仅提取温度条件为'25℃'、'Tj=25℃'或未注明温度（默认视为25℃）对应列的数值；3）如同一行有多温度列，严禁用175℃或其他高温列的值替代25℃。
+  verified: false
+  added_round: 1
+- param: '*'
+  issue: 值错误 - 提取器可能选错了表格的行或列，导致提取了相邻的错误数据
+  rule: 实施'单元格锚定'规则：当定位到参数名（如'Eoff'）后，必须确认其所在的完整表格结构。提取数值时，应沿着参数名所在的同一行（对于行标题）或同一列（对于列标题）进行横向或纵向查找，直到找到明确的数值单元格。避免提取参数名单元格本身或完全无关行列的数据。
+  verified: false
+  added_round: 1
+- param: '*'
+  issue: 遗漏 - 对非标准缩写、符号或位于图表、注释中的参数不敏感
+  rule: 实施'同义词和上下文扩展'规则：除了标准参数名，还需识别其常见符号、缩写或中文名称（例如，'Vcesat' 可能也写作 '饱和压降'）。同时，扫描表格下方的'注释'、'条件'等文本区域，这里可能包含关键参数值或解释。
+  verified: false
+  added_round: 1
+- param: '*'
+  issue: 遗漏 - 高温(175℃)开关参数组整体未提取，因为PDF使用150℃而非175℃
+  rule: "【重要-温度映射规则】不同厂家IGBT的'高温条件'各不相同：有的用175℃、有的用150℃、有的用125℃。当参数清单要求提取'175℃'条件的参数（如tdon 175℃、tr 175℃、tdoff 175℃、tf 175℃、Eon 175℃、Eoff 175℃、Ets 175℃、trr 175℃、Irrm 175℃、Qrr 175℃、VF 175℃、Vcesat type 175℃、Erec 175℃）时，如果PDF中没有175℃数据，但有150℃（或其他非25℃的最高温度）的对应数据，应当将该温度下的数值提取出来，并在参数名后标注实际温度（如'Eon 150°C'）。绝不能因为PDF温度不完全匹配175℃就跳过该参数。"
+  verified: false
+  added_round: 2

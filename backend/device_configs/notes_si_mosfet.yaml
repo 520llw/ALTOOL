@@ -1,0 +1,78 @@
+# Si MOSFET 提参注意文档
+# 自监督优化循环自动生成
+# 最后更新: 2026-02-12 16:15 (第3轮)
+
+notes:
+- param: 认证
+  issue: 遗漏：PDF中存在'Green'等认证信息关键词，但未作为'认证'参数提取。
+  rule: 在文档的非表格区域（如首页、封底、备注部分）搜索'Green'、'RoHS'、'Halogen-free'等关键词。当发现这些关键词时，提取为'认证'参数，其值为关键词本身或相关描述（如'RoHS
+    Compliant'）。此参数不来自标准电气参数表格。
+  verified: false
+  added_round: 1
+- param: 特殊功能
+  issue: 遗漏。PDF中'Features'部分包含器件特性描述，但提取器未识别为'特殊功能'参数。
+  rule: 当PDF中出现'Features'、'Key Features'、'Product Features'等标题或章节时，将其下的所有要点（通常以项目符号'•'、'-'或数字开头）的文本内容完整提取，合并为一个字符串，作为'特殊功能'参数的值。
+  verified: false
+  added_round: 1
+- param: 安装
+  issue: AI编造了不存在的'安装'参数值。PDF中通常没有'安装'参数，AI可能根据器件类型（如TO-220）或上下文推断出'Surface Mount'。
+  rule: 严格禁止提取'安装'参数。除非PDF中有明确以'Mounting Type'、'Package'或类似标题列出的参数行，否则不提取此参数。禁止从封装名称（如TO-220,
+    D2PAK）推断安装方式。
+  verified: false
+  added_round: 2
+- param: Igss
+  issue: 遗漏：PDF中存在'Igss'参数，但提取器未能识别和提取。
+  rule: 在'Electrical Characteristics'或'Static Characteristics'表格中，定位'Gate-Body Leakage Current'或'Gate Leakage Current'所在行，并识别符号列中的'IGSS'、'IGSSF'、'IGSSR'等写法。仅从该行'Max.'列中提取栅漏电流数值（通常为nA级），禁止从其他参数行或测试条件说明中推断。
+  verified: false
+  added_round: 1
+- param: Vgs min
+  issue: AI编造了不存在的'Vgs min'值'-20V'。PDF中通常只提供'Vgs'的最大额定值（如±20V），AI可能错误地将最大绝对值复制为最小值。
+  rule: '提取''Vgs''参数时，必须严格匹配PDF中的表述。如果PDF中写的是''Gate-to-Source Voltage (Vgs) ±20V''，则提取为''Vgs:
+    ±20V''。禁止拆分出''Vgs min''或''Vgs max''，除非PDF中明确以''Min''和''Max''列分别标出。'
+  verified: false
+  added_round: 2
+- param: '*'
+  issue: AI倾向于从非参数描述性文本（如标题、特性列表、应用笔记）中提取或编造参数值，导致幻觉。
+  rule: 参数提取必须严格限定在明确标识的参数表格（Table）或参数列表（如'Absolute Maximum Ratings', 'Electrical
+    Characteristics'）区域内。忽略所有章节标题、特性要点（Features）、框图、应用电路描述和注释中的文本。只提取格式为'参数名 数值 单位'或类似表格结构的行。
+  verified: false
+  added_round: 2
+- param: Vgs max
+  issue: 遗漏。PDF中在'Absolute Maximum Ratings'表格或类似位置存在'VGS'的最大额定值，但提取器未提取。
+  rule: 在'Absolute Maximum Ratings'或'Maximum Ratings'表格中，精确查找参数名为'Gate-to-Source Voltage'、'VGS'或'VGS
+    (max)'的行。提取其对应的'Max.'数值（单位通常为V，注意正负号，如±20V）。
+  verified: false
+  added_round: 1
+- param: '*'
+  issue: 值错误。提取器可能选错了表格中的行或列，将其他参数的值误认为目标参数的值。
+  rule: 提取参数值时，必须严格匹配参数名称列（如'Symbol'、'Parameter'列）中的完整或标准缩写。然后，在同一行内，从'Value'、'Min.'、'Typ.'、'Max.'或'Test
+    Conditions'列中提取对应值。避免跨行或跨列提取。
+  verified: false
+  added_round: 1
+- param: '*'
+  issue: 幻觉。AI编造了PDF中不存在的参数值。
+  rule: 严格禁止推断、计算或猜测任何参数值。所有提取的值必须在PDF原文中有明确的数字和单位对应。如果PDF中某参数只有'--'、'N/A'或为空，则提取值为空字符串或null，不得填充任何内容。对于未在PDF中找到明确对应项的参数，直接标记为'未提供'。
+  verified: false
+  added_round: 1
+- param: EAS L=0.1mH
+  issue: 遗漏：PDF中存在'EAS'参数，但提取器未能识别和提取。
+  rule: 在'Switching Characteristics'或'Maximum Ratings'表格中，查找参数名包含'EAS'的行。注意参数名可能带有条件，如'EAS
+    (L=0.1mH)'。提取时，需完整捕获参数名和其对应的数值及单位（如mJ）。
+  verified: false
+  added_round: 1
+- param: '*'
+  issue: 值错误：提取器可能错误地将表头、单位行、条件说明行或无关注释行的文本当作参数值提取。
+  rule: 严格区分数据行与非数据行。参数值必须为明确的数字（可能带单位，如10A，100V，5.6mΩ）。忽略纯文本行（如'条件'、'符号'、'参数'、'单位'等表头）、仅包含单位的行、以及以'Note'、'*'、'**'开头的注释行。提取时，确保目标单元格或文本块的核心内容是数字。
+  verified: false
+  added_round: 1
+- param: '*'
+  issue: 幻觉：AI可能基于参数名称的常见模式或上下文，编造了PDF中并不存在的典型值或范围。
+  rule: 严格禁止推断、估算或使用常识填充参数值。每个参数值必须直接、明确地来源于PDF文档中紧邻参数名称或符号的文本或数字。如果PDF中某参数名称后无对应数值、或数值位置模糊无法确认，则将该参数标记为'未提供'或'无法提取'，绝不编造。
+  verified: false
+  added_round: 1
+- param: PD Tc=25℃
+  issue: 遗漏：PDF中存在'PD'参数，但提取器未能识别和提取。
+  rule: 在'Absolute Maximum Ratings'或'Thermal Characteristics'部分，首先在表格中查找'Power Dissipation'或'PD'行；若表格缺失，则结合'Power Dissipation'曲线图标题/图注中的额定功耗值。只在条件为'Tc=25℃'、'Case Temperature=25°C'或明显为外壳25°C时提取对应瓦数，禁止从瞬态曲线或Rth图中推断连续功耗。
+  verified: false
+  added_round: 1
+

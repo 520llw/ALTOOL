@@ -1,0 +1,39 @@
+# 在 Linux 上 push 代码后，由 GitHub Actions 在 Windows 环境自动打包
+# 生成 Windows 便携版 zip，可从 Actions 页面下载
+
+name: 打包 Windows 便携版
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'AITOOL/**'   # 仅 AITOOL 变更时触发（若 repo 根即 AITOOL，改为 '**'）
+  workflow_dispatch:  # 支持手动触发
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 执行打包
+        run: |
+          # 支持两种结构：repo 根即 AITOOL，或 AITOOL 为子目录
+          if (Test-Path "AITOOL/build/build_portable.py") {
+            Set-Location AITOOL
+          }
+          python build/build_portable.py
+        shell: pwsh
+
+      - name: 上传便携版
+        uses: actions/upload-artifact@v4
+        with:
+          name: 功率器件参数提取系统_便携版
+          path: "**/功率器件参数提取系统_便携版.zip"
