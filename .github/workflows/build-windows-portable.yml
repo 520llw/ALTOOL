@@ -23,8 +23,10 @@ jobs:
 
       - name: 执行打包
         run: |
+          Get-Location
+          Get-ChildItem -Name
           if (Test-Path "AITOOL/build/build_portable.py") { Set-Location AITOOL }
-          python build/build_portable.py
+          python -u build/build_portable.py
         shell: pwsh
 
       - name: 上传便携版

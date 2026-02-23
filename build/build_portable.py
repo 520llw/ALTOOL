@@ -88,15 +88,22 @@ def log(msg: str):
     print(f"[打包] {msg}")
 
 
-def download_file(url: str, dest: Path) -> bool:
-    """下载文件"""
-    try:
-        log(f"下载: {url}")
-        urllib.request.urlretrieve(url, dest)
-        return True
-    except Exception as e:
-        log(f"下载失败: {e}")
-        return False
+def download_file(url: str, dest: Path, retries: int = 3) -> bool:
+    """下载文件，带重试（适用于 CI 网络波动）"""
+    import time
+    req = urllib.request.Request(url, headers={"User-Agent": "Python-build"})
+    for attempt in range(1, retries + 1):
+        try:
+            log(f"下载: {url} (尝试 {attempt}/{retries})")
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                dest.write_bytes(resp.read())
+            if dest.exists() and dest.stat().st_size > 0:
+                return True
+        except Exception as e:
+            log(f"下载失败: {e}")
+            if attempt < retries:
+                time.sleep(5)
+    return False
 
 
 def extract_zip(zip_path: Path, dest: Path):
