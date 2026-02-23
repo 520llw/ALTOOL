@@ -35,6 +35,7 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 # 需要包含的文件/目录
 INCLUDE_PATTERNS = [
     "main.py",
+    "launcher_desktop.py",
     "config.yaml",
     "requirements.txt",
     "backend",
@@ -173,27 +174,56 @@ def fix_embed_pth(python_dir: Path):
 
 
 def create_launcher_bat(dest: Path, python_exe: Path):
-    """创建便携版启动脚本"""
-    bat_content = f'''@echo off
+    """创建便携版启动脚本（桌面窗口 + 浏览器备用）"""
+    # 主启动：桌面窗口（选项 C）
+    desktop_bat = f'''@echo off
 chcp 65001 >nul
 title 功率器件参数提取系统
 
 cd /d "%~dp0"
 
 echo ==========================================
-echo   ⚡ 功率器件参数提取系统
+echo   ⚡ 功率器件参数提取系统（桌面版）
 echo ==========================================
 echo.
 echo 正在启动，请稍候...
 echo.
 
-:: 创建必要目录
 if not exist "data" mkdir data
 if not exist "logs" mkdir logs
 if not exist "output" mkdir output
 if not exist "cache" mkdir cache
 
-:: 使用内嵌 Python 启动
+"{python_exe}" launcher_desktop.py
+
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo 启动失败，请检查错误信息。
+    pause
+)
+'''
+    (dest / "启动.bat").write_text(desktop_bat, encoding="utf-8")
+    log("已创建: 启动.bat（桌面窗口）")
+
+    # 备用：浏览器版
+    browser_bat = f'''@echo off
+chcp 65001 >nul
+title 功率器件参数提取系统 - 浏览器版
+
+cd /d "%~dp0"
+
+echo ==========================================
+echo   ⚡ 功率器件参数提取系统（浏览器版）
+echo ==========================================
+echo.
+echo 正在启动，浏览器将自动打开...
+echo.
+
+if not exist "data" mkdir data
+if not exist "logs" mkdir logs
+if not exist "output" mkdir output
+if not exist "cache" mkdir cache
+
 "{python_exe}" -m streamlit run main.py ^
     --server.port 8501 ^
     --server.headless false ^
@@ -206,9 +236,8 @@ if %ERRORLEVEL% NEQ 0 (
     pause
 )
 '''
-    launcher = dest / "启动.bat"
-    launcher.write_text(bat_content, encoding="utf-8")
-    log(f"已创建: 启动.bat")
+    (dest / "启动-浏览器版.bat").write_text(browser_bat, encoding="utf-8")
+    log("已创建: 启动-浏览器版.bat")
 
 
 def create_readme(dest: Path):
@@ -218,20 +247,22 @@ def create_readme(dest: Path):
 ========================================
 
 【使用方法】
-1. 双击 启动.bat
-2. 等待浏览器自动打开（约 10-30 秒）
+1. 双击 启动.bat（推荐：在桌面窗口中打开，无需浏览器）
+2. 等待程序窗口出现（约 10-30 秒）
 3. 默认账号: admin  密码: admin123
+4. 若桌面版无法使用，可双击 启动-浏览器版.bat 用浏览器打开
 
 【注意事项】
 - 首次启动可能较慢，请耐心等待
 - 需要联网（用于 AI 参数提取）
 - 请勿删除或移动本文件夹内的任何文件
 - 数据保存在 data 目录，可定期备份
+- Windows 10/11 会使用系统自带的 Edge WebView2 显示窗口
 
 【如遇问题】
 - 若杀毒软件拦截，请添加信任
-- 若端口 8501 被占用，可修改 启动.bat 中的端口号
-- 关闭时直接关闭浏览器窗口和黑色命令行窗口即可
+- 若端口 8501 被占用，可修改启动脚本中的端口号
+- 关闭时直接关闭程序窗口即可（桌面版会同时退出后台服务）
 """
     readme.write_text(content, encoding="utf-8")
     log("已创建: 使用说明.txt")

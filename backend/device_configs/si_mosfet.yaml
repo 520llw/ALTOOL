@@ -1,10 +1,9 @@
 # Si MOSFET 参数配置
-# 严格按照 "Si mos与SiC mos 参数提取格式.xlsx" + "Si_MOSFET_参数表_20260201042117.xlsx" 列头
-# 按类别分组，每组 ≤ 15 个参数
+# 严格按照 "Si mos与SiC mos 参数提取格式.xlsx" → Si MOS 表 (62列)
+# 参数顺序与Excel列顺序完全一致
 
 groups:
-
-  基本信息:
+  全部参数:
     - name: "PDF文件名"
       aliases: ["文件名", "FileName", "File Name", "PDF name"]
     - name: "厂家"
@@ -15,42 +14,8 @@ groups:
       aliases: ["Package", "PKG", "Package Type", "封装类型"]
     - name: "技术"
       aliases: ["Technology", "工艺"]
-    - name: "封装"
-      aliases: ["PKG"]
-    - name: "极性"
-      aliases: ["N-channel", "P-channel", "Channel", "Polarity", "N沟道", "P沟道"]
-    - name: "特殊功能"
-      aliases: ["Features", "功能", "Special Features"]
-    - name: "Product Status"
-      aliases: ["产品状态"]
-    - name: "认证"
-      aliases: ["RoHS", "AEC-Q101", "Pb-free", "Green", "标准等级", "Qualification", "Standard"]
-    - name: "安装"
-      aliases: ["SMD", "THT", "Through hole", "Surface Mount", "安装方式", "Mounting"]
-    - name: "ESD"
-      aliases: ["ESD Rating", "静电防护"]
-    - name: "预算价格€/1k"
-      aliases: ["Price"]
-
-  电压参数:
     - name: "VDS"
-      aliases: ["VDSS", "V(BR)DSS", "BVDSS", "Drain-source breakdown voltage", "漏源击穿电压", "V(BR)DSS max", "BVDSS min", "Drain-Source Voltage"]
-    - name: "Vgs min"
-      aliases: ["VGS min", "Gate-source voltage min", "栅源电压min", "VGS(min)"]
-    - name: "Vgs max"
-      aliases: ["VGS max", "Gate-source voltage max", "栅源电压max", "VGS(max)", "VGS"]
-    - name: "Vth type"
-      aliases: ["VGS(th) typ", "Gate threshold voltage typ", "Vth typ", "VGS(th)", "VGS(th) typical", "阈值电压typ"]
-    - name: "Vth min"
-      aliases: ["VGS(th) min", "Gate threshold voltage min", "阈值电压min"]
-    - name: "Vth max"
-      aliases: ["VGS(th) max", "Gate threshold voltage max", "阈值电压max"]
-    - name: "Vplateau"
-      aliases: ["VGP", "Miller Plateau", "Gate plateau voltage", "Miller平台电压", "VGP typ"]
-    - name: "反二极管压降Vsd"
-      aliases: ["VSD", "VF", "Diode forward voltage", "体二极管正向压降", "VSD typ", "Body diode forward voltage", "VF typ", "VSD max"]
-
-  电阻参数:
+      aliases: ["VDSS", "V(BR)DSS", "BVDSS", "Drain-source breakdown voltage", "漏源击穿电压", "Drain-Source Voltage"]
     - name: "Ron 10V_type"
       aliases: ["RDS(on) typ VGS=10V", "Rdson", "RDS(on) typ", "RDS(on) typical", "导通电阻typ", "RDS(on)", "Ron typ"]
     - name: "Ron 10V_max"
@@ -63,14 +28,28 @@ groups:
       aliases: ["RDS(on) typ VGS=2.5V", "RDS(on) typ 2.5V"]
     - name: "Ron 2.5V_max"
       aliases: ["RDS(on) max VGS=2.5V", "RDS(on) max 2.5V"]
-    - name: "RDS(on) 10V TJ=175℃"
-      aliases: ["RDS(on) at 175°C", "RDS(on) 175℃", "Rdson 175℃"]
-    - name: "RDS(on) 10V TJ=150℃"
-      aliases: ["RDS(on) at 150°C", "RDS(on) 150℃", "Rdson 150℃"]
-    - name: "Rg"
-      aliases: ["RG", "Gate resistance", "栅极电阻", "RG typ", "Rg typ", "RG(int)"]
-
-  电流参数:
+    - name: "Qg_10V"
+      aliases: ["Gate charge VGS=0-10V", "QG(10V)", "Qg 10V"]
+    - name: "Qg_4.5V"
+      aliases: ["Gate charge VGS=0-4.5V", "QG(4.5V)", "Qg 4.5V"]
+    - name: "反二极管压降Vsd"
+      aliases: ["VSD", "VF", "Diode forward voltage", "体二极管正向压降", "VSD typ", "Body diode forward voltage", "VF typ", "VSD max"]
+    - name: "Is"
+      aliases: ["IS", "Source current", "体二极管连续电流", "IS 25℃", "Body diode continuous current"]
+    - name: "Ism"
+      aliases: ["ISM", "IS(pulse)", "体二极管脉冲电流", "IS pulse"]
+    - name: "Irrm"
+      aliases: ["IRRM", "Peak reverse recovery current", "反向恢复峰值电流"]
+    - name: "Vgs min"
+      aliases: ["VGS min", "Gate-source voltage min", "栅源电压min", "VGS(min)"]
+    - name: "Vgs max"
+      aliases: ["VGS max", "Gate-source voltage max", "栅源电压max", "VGS(max)", "VGS"]
+    - name: "Vth type"
+      aliases: ["VGS(th) typ", "Gate threshold voltage typ", "Vth typ", "VGS(th)", "VGS(th) typical", "阈值电压typ"]
+    - name: "Vth min"
+      aliases: ["VGS(th) min", "Gate threshold voltage min", "阈值电压min"]
+    - name: "Vth max"
+      aliases: ["VGS(th) max", "Gate threshold voltage max", "阈值电压max"]
     - name: "ID Tc=25℃"
       aliases: ["ID", "Drain current TC=25°C", "ID 25℃", "ID TC=25℃", "连续漏极电流", "ID(25°C)", "Continuous drain current"]
     - name: "ID TA=25℃"
@@ -79,26 +58,6 @@ groups:
       aliases: ["Drain current TC=100°C", "ID 100℃", "ID TC=100℃", "ID(100°C)"]
     - name: "ID puls Tc=25℃"
       aliases: ["IDM", "ID(pulse)", "Pulsed drain current", "脉冲漏极电流", "ID pulse", "ID puls", "IDM 25℃"]
-    - name: "Is"
-      aliases: ["IS", "Source current", "体二极管连续电流", "IS 25℃", "Body diode continuous current"]
-    - name: "Ism"
-      aliases: ["ISM", "IS(pulse)", "体二极管脉冲电流", "IS pulse"]
-    - name: "Irrm"
-      aliases: ["IRRM", "Peak reverse recovery current", "反向恢复峰值电流"]
-    - name: "Idss"
-      aliases: ["IDSS", "Zero gate voltage drain current", "零栅压漏极电流", "IDSS 25℃", "IDSS 25°C", "Drain leakage current"]
-    - name: "IDSS TJ=175℃"
-      aliases: ["IDSS at 175°C", "IDSS 175℃"]
-    - name: "IDSS TJ=150℃"
-      aliases: ["IDSS at 150°C", "IDSS 150℃"]
-    - name: "Igss"
-      aliases: ["IGSS", "IGSSF", "IGSSR", "Gate-source leakage current", "Gate-Body Leakage Current", "栅源漏电流", "IGSS max", "Gate leakage current"]
-    - name: "IGSSF"
-      aliases: ["IGSS+", "IGSS forward", "IGSS正向"]
-    - name: "IGSSR"
-      aliases: ["IGSS-", "IGSS reverse", "IGSS反向"]
-
-  电容电荷参数:
     - name: "Ciss"
       aliases: ["CISS", "Input capacitance", "输入电容", "Ciss typ"]
     - name: "Crss"
@@ -107,10 +66,6 @@ groups:
       aliases: ["COSS", "Output capacitance", "输出电容", "Coss typ"]
     - name: "Qg"
       aliases: ["QG", "Gate charge total", "总栅极电荷", "Gate charge", "Qg total", "QG(tot)", "Qg tot"]
-    - name: "Qg_10V"
-      aliases: ["Gate charge VGS=0-10V", "QG(10V)", "Qg 10V"]
-    - name: "Qg_4.5V"
-      aliases: ["Gate charge VGS=0-4.5V", "QG(4.5V)", "Qg 4.5V"]
     - name: "Qgs"
       aliases: ["QGS", "Gate-source charge", "栅源电荷", "Qgs typ"]
     - name: "Qg（th）"
@@ -125,10 +80,12 @@ groups:
       aliases: ["QOSS", "Output charge", "输出电荷", "Qoss typ"]
     - name: "Qrr"
       aliases: ["QRR", "Reverse recovery charge", "反向恢复电荷", "Qrr typ"]
+    - name: "Rg"
+      aliases: ["RG", "Gate resistance", "栅极电阻", "RG typ", "Rg typ", "RG(int)"]
     - name: "gfs"
       aliases: ["gFS", "Transconductance", "跨导", "gfs typ"]
-
-  开关时间与雪崩:
+    - name: "Vplateau"
+      aliases: ["VGP", "Miller Plateau", "Gate plateau voltage", "Miller平台电压", "VGP typ"]
     - name: "td-on"
       aliases: ["td(on)", "Turn-on delay time", "开通延迟时间", "tdon", "td(on) typ"]
     - name: "tr"
@@ -139,37 +96,35 @@ groups:
       aliases: ["tF", "Fall time", "下降时间", "tf typ"]
     - name: "trr"
       aliases: ["tRR", "Reverse recovery time", "反向恢复时间", "trr typ"]
+    - name: "Idss"
+      aliases: ["IDSS", "Zero gate voltage drain current", "零栅压漏极电流", "IDSS 25℃", "Drain leakage current"]
+    - name: "Igss"
+      aliases: ["IGSS", "IGSSF", "IGSSR", "Gate-source leakage current", "Gate-Body Leakage Current", "栅源漏电流", "IGSS max", "Gate leakage current"]
     - name: "EAS L=0.1mH"
       aliases: ["EAS", "Avalanche energy single pulse", "雪崩能量", "Single pulse avalanche energy"]
-
-  热特性与温度:
     - name: "PD Tc=25℃"
       aliases: ["PD", "Ptot", "Power dissipation", "总功耗", "PD 25℃", "Ptot 25℃", "Maximum power dissipation"]
     - name: "RthJC max"
       aliases: ["RθJC", "Rth(j-c)", "Thermal resistance junction-case", "结壳热阻", "RthJC", "Rth(j-c) max"]
     - name: "RthJA max"
       aliases: ["RθJA", "Rth(j-a)", "Thermal resistance junction-ambient", "结环热阻", "RthJA", "Rth(j-a) max"]
+    - name: "封装"
+      aliases: ["PKG"]
+    - name: "特殊功能"
+      aliases: ["Features", "功能", "Special Features"]
+    - name: "极性"
+      aliases: ["N-channel", "P-channel", "Channel", "Polarity", "N沟道", "P沟道"]
+    - name: "Product Status"
+      aliases: ["产品状态"]
+    - name: "认证"
+      aliases: ["RoHS", "AEC-Q101", "Pb-free", "Green", "标准等级", "Qualification", "Standard"]
     - name: "工作温度min"
       aliases: ["Tj min", "Operating temperature min", "Operating junction temperature min", "结温min"]
     - name: "工作温度max"
       aliases: ["Tj max", "Operating temperature max", "Operating junction temperature max", "结温max"]
-    - name: "TSTG min"
-      aliases: ["Storage temperature min", "存储温度min", "Tstg min"]
-    - name: "TSTG max"
-      aliases: ["Storage temperature max", "存储温度max", "Tstg max"]
-    - name: "Tsold"
-      aliases: ["Soldering temperature", "焊接温度", "TSOL"]
-
-  测试条件:
-    - name: "Qg测试条件"
-      aliases: []
-    - name: "Ciss测试条件"
-      aliases: []
-    - name: "开关时间测试条件"
-      aliases: []
-    - name: "Qrr测试条件"
-      aliases: []
-    - name: "IDM限制条件"
-      aliases: []
-    - name: "EAS测试条件"
-      aliases: []
+    - name: "预算价格€/1k"
+      aliases: ["Price"]
+    - name: "安装"
+      aliases: ["SMD", "THT", "Through hole", "Surface Mount", "安装方式", "Mounting"]
+    - name: "ESD"
+      aliases: ["ESD Rating", "静电防护"]

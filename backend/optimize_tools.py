@@ -297,18 +297,29 @@ def initialize_optimization():
     """
     初始化优化功能
     应在应用启动时调用
+    使用与业务一致的数据库路径（params.db），并创建搜索用索引
     """
     # 初始化日志
     setup_logging()
     
-    # 创建必要目录
-    for path_key in ['data_dir', 'upload_dir', 'output_dir', 'log_dir']:
-        path = Path(config_manager.get(f'paths.{path_key}', f'./{path_key}'))
+    # 创建必要目录（与 config.yaml paths 一致）
+    _path_defaults = {'data_dir': './data', 'upload_dir': './data/uploads', 'output_dir': './output',
+                     'log_dir': './logs', 'cache_dir': './cache', 'backup_dir': './backup'}
+    for path_key, default in _path_defaults.items():
+        path = Path(config_manager.get(f'paths.{path_key}', default))
         path.mkdir(parents=True, exist_ok=True)
     
-    # 创建数据库索引
-    db_path = Path(config_manager.get('paths.data_dir', './data')) / 'database.db'
-    if db_path.exists():
-        create_database_indexes(str(db_path))
+    # 使用与业务一致的数据库路径建索引（与 backend.config.DATABASE_PATH 一致）
+    try:
+        from backend.config import DATABASE_PATH
+        db_path = Path(DATABASE_PATH)
+        if db_path.exists():
+            create_database_indexes(str(db_path))
+            # 同时创建搜索优化索引（db_manager 提供的索引）
+            from backend.db_manager import DatabaseManager
+            db = DatabaseManager()
+            db.create_search_indexes()
+    except Exception as e:
+        logger.warning(f"数据库索引初始化跳过或部分失败: {e}")
     
     logger.info("优化功能初始化完成")

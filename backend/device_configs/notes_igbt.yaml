@@ -1,8 +1,18 @@
 # IGBT 提参注意文档
 # 自监督优化循环自动生成
-# 最后更新: 2026-02-12 14:50 (第1轮)
+# 最后更新: 2026-02-13 (第3轮)
 
 notes:
+- param: Package
+  issue: 不完整 - AI只提取了一种封装，遗漏了其他封装类型
+  rule: "【Package提取规则】必须提取该器件所有可用封装类型，用逗号分隔。例如PDF中写'available in TO-263 and TO-247 packages'，则提取为'TO-263, TO-247'。搜索范围：1）首页产品描述中的封装信息；2）'Package Type'示意图标题；3）'Ordering Information'表格中所有封装列。如果PDF中只有一种封装则只填一种。"
+  verified: true
+  added_round: 3
+- param: Part Number
+  issue: 不一致 - AI有时提取完整订货号(如含封装后缀)，有时提取基础型号
+  rule: "【Part Number提取规则】提取器件的基础通用型号（Base Part Number），不包含封装后缀、包装方式后缀或绿色标识后缀。例如：PDF标题为'SRE40N065FSU2DG'，订货号表有'SRE40N065FSU2DGT-G1'（T=TO-247, G1=Green），则Part Number应填'SRE40N065FSU2DG'。查找位置：优先取PDF标题/首页中'General Description'旁的主型号名称。"
+  verified: true
+  added_round: 3
 - param: Eon 25℃
   issue: 遗漏 - 开关特性25℃组(Eon/Eoff/Ets/td(on)/td(off)/tr/tf)常被整体遗漏
   rule: 在Dynamic characteristics、Switching characteristics、Electrical characteristics等表格中，务必逐项搜索并提取：Turn-on energy→Eon 25℃、Turn-off energy→Eoff 25℃、Total switching energy→Ets 25℃、Rise time→tr 25℃、Fall time→tf 25℃、Turn-on delay time→tdon 25℃、Turn-off delay time→tdoff 25℃。若表格有多温度列，优先提取Tj=25℃或室温列。
@@ -34,7 +44,12 @@ notes:
   verified: false
   added_round: 1
 - param: '*'
-  issue: 遗漏 - 高温(175℃)开关参数组整体未提取，因为PDF使用150℃而非175℃
-  rule: "【重要-温度映射规则】不同厂家IGBT的'高温条件'各不相同：有的用175℃、有的用150℃、有的用125℃。当参数清单要求提取'175℃'条件的参数（如tdon 175℃、tr 175℃、tdoff 175℃、tf 175℃、Eon 175℃、Eoff 175℃、Ets 175℃、trr 175℃、Irrm 175℃、Qrr 175℃、VF 175℃、Vcesat type 175℃、Erec 175℃）时，如果PDF中没有175℃数据，但有150℃（或其他非25℃的最高温度）的对应数据，应当将该温度下的数值提取出来，并在参数名后标注实际温度（如'Eon 150°C'）。绝不能因为PDF温度不完全匹配175℃就跳过该参数。"
-  verified: false
+  issue: 温度严格匹配 - 必须严格按照参数清单中指定的温度条件提取
+  rule: "【重要-温度严格匹配规则】提取参数时，必须严格匹配参数清单中指定的温度条件。例如：要求'Eon 175℃'就只能提取Tj=175℃条件下的数值；要求'VF 25℃'就只能提取Tj=25℃条件下的数值。如果PDF中没有对应温度条件的数据（例如PDF只有150℃而要求175℃），则该参数必须留空返回null，绝不允许用其他温度的数据替代。不同温度的数据不可互相混用。"
+  verified: true
   added_round: 2
+- param: V(BR)CE
+  issue: 值/条件错误 - AI将Absolute Maximum Ratings中的额定VCES值与Electrical Characteristics中的BVCES击穿测试条件混在一起，编造了不存在的测试条件
+  rule: "【V(BR)CE提取规则】V(BR)CE应提取Absolute Maximum Ratings表格中'Collector-emitter voltage'或'VCES'行的额定值（如650V），这是一个额定最大值，不附带测试条件。禁止将Electrical Characteristics表格中'BVCES'行的击穿电压测试条件（如VGE=0V, IC=1mA）与额定VCES值混用。如果提取的是额定值，test_condition应为空或仅写'Absolute Maximum Rating'。"
+  verified: true
+  added_round: 4

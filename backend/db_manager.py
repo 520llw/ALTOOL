@@ -6,9 +6,11 @@
 
 import re
 import logging
+import yaml
+from pathlib import Path
 from datetime import datetime
 from typing import List, Optional, Dict, Any, Tuple
-from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Float
+from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Float, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship, Session
 from sqlalchemy.pool import StaticPool
@@ -615,11 +617,14 @@ class DatabaseManager:
         session = self.get_session()
         try:
             # 使用原生SQL创建索引
-            session.execute("CREATE INDEX IF NOT EXISTS idx_parse_results_pdf_name ON parse_results(pdf_name)")
-            session.execute("CREATE INDEX IF NOT EXISTS idx_parse_results_param_name ON parse_results(param_name)")
-            session.execute("CREATE INDEX IF NOT EXISTS idx_parse_results_device_type ON parse_results(device_type)")
-            session.execute("CREATE INDEX IF NOT EXISTS idx_standard_params_param_name ON standard_params(param_name)")
-            session.execute("CREATE INDEX IF NOT EXISTS idx_param_variants_variant_name ON param_variants(variant_name)")
+            for stmt in [
+                "CREATE INDEX IF NOT EXISTS idx_parse_results_pdf_name ON parse_results(pdf_name)",
+                "CREATE INDEX IF NOT EXISTS idx_parse_results_param_name ON parse_results(param_name)",
+                "CREATE INDEX IF NOT EXISTS idx_parse_results_device_type ON parse_results(device_type)",
+                "CREATE INDEX IF NOT EXISTS idx_standard_params_param_name ON standard_params(param_name)",
+                "CREATE INDEX IF NOT EXISTS idx_param_variants_variant_name ON param_variants(variant_name)",
+            ]:
+                session.execute(text(stmt))
             session.commit()
             logger.info("搜索索引创建成功")
             return True
@@ -1172,13 +1177,27 @@ class DatabaseManager:
         finally:
             session.close()
     
+    def _get_param_order_from_yaml(self, device_type: str) -> List[str]:
+        """从器件类型对应的YAML加载参数列顺序（与Excel严格对齐）"""
+        type_map = {'Si MOSFET': 'si_mosfet', 'SiC MOSFET': 'sic_mosfet', 'IGBT': 'igbt'}
+        key = type_map.get(device_type, 'si_mosfet')
+        config_path = Path(__file__).parent / 'device_configs' / f'{key}.yaml'
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                data = yaml.safe_load(f) or {}
+            groups = data.get('groups', {})
+            return [p['name'] for g, params in groups.items() for p in params]
+        except Exception as e:
+            logger.warning(f"加载YAML列顺序失败 {config_path}: {e}")
+            return []
+
     def get_params_for_table(self, device_type: str, pdf_list: List[str], user_id: int = None) -> Dict[str, Any]:
         """
         获取用于生成表格的参数数据（按用户过滤）
         
         按「器件一行、参数一列」整理数据：
         - 行：选中的PDF文件
-        - 列：该器件类型的所有标准参数
+        - 列：该器件类型的所有标准参数（顺序来自YAML，与Excel严格对齐）
         - 单元格：参数值（含测试条件备注），未提取标为「未提取」
         
         增强匹配逻辑：
@@ -1196,9 +1215,13 @@ class DatabaseManager:
         """
         session = self.get_session()
         try:
-            # 获取所有标准参数（作为表格列），按ID排序保持Excel顺序
-            all_params = session.query(StandardParam).order_by(StandardParam.id).all()
-            param_names = [p.param_name for p in all_params]
+            # 列顺序优先从YAML加载（与Excel严格对齐），否则回退到数据库
+            param_names = self._get_param_order_from_yaml(device_type)
+            if not param_names:
+                all_params = session.query(StandardParam).order_by(StandardParam.id).all()
+                param_names = [p.param_name for p in all_params]
+            else:
+                all_params = session.query(StandardParam).all()
             
             # 构建参数名映射表（用于模糊匹配）
             # key: 标准化后的名称（小写、去空格）, value: 原始标准参数名
@@ -1222,23 +1245,27 @@ class DatabaseManager:
                     param_name_map[variant_normalized] = p.param_name
                     param_name_map[v.variant_name] = p.param_name  # 精确匹配变体名
             
-            # 添加旧参数名到新参数名的兼容映射（支持已存储的旧数据）
+            # 旧参数名 -> 新参数名（兼容已存储的旧数据）
             legacy_mapping = {
-                # Ron -> RDS(on) 映射
-                'Ron 10V_type': 'RDS(on) 10V_type',
-                'Ron 10V_max': 'RDS(on) 10V_max',
-                'Ron 4.5V_type': 'RDS(on) 4.5V_type',
-                'Ron 4.5V_max': 'RDS(on) 4.5V_max',
-                'Ron 2.5V_type': 'RDS(on) 2.5V_type',
-                'Ron 2.5V_max': 'RDS(on) 2.5V_max',
-                # Igss -> IGSSF 映射
-                'Igss': 'IGSSF',
-                # 温度符号映射 Tc -> TC
-                'ID Tc=25℃': 'ID TC=25℃',
-                'ID Tc=100℃': 'ID TC=100℃',
-                'ID puls Tc=25℃': 'ID puls TC=25℃',
-                'PD Tc=25℃': 'PD TC=25℃',
+                # Si/SiC MOSFET: RDS(on) 与 Ron 互为别名
+                'RDS(on) 10V_type': 'Ron 10V_type', 'RDS(on) 10V_max': 'Ron 10V_max',
+                'RDS(on) 4.5V_type': 'Ron 4.5V_type', 'RDS(on) 4.5V_max': 'Ron 4.5V_max',
+                'RDS(on) 2.5V_type': 'Ron 2.5V_type', 'RDS(on) 2.5V_max': 'Ron 2.5V_max',
+                # IGBT 旧名 -> 新名（带单位后缀的 Excel 列名）
+                'Cies': 'Cies（pF）', 'Coes': 'Coes（pF）', 'Cres': 'Cres（pF）',
+                'tdon 25℃': 'tdon 25℃（ns）', 'tdon 175℃': 'tdon 175℃（ns）',
+                'tr 25℃': 'tr 25℃（ns）', 'tr 175℃': 'tr175℃（ns）',
+                'tdoff 25℃': 'tdoff 25℃（ns）', 'tdoff 175℃': 'tdoff 175℃（ns）',
+                'tf 25℃': 'tf 25℃（ns）', 'tf 175℃': 'tf 175℃（ns）',
+                'trr 25℃': 'trr 25℃（ns）',
+                'Eon 25℃': 'Eon 25℃（uJ）', 'Eon 175℃': 'Eon 175℃（uJ）',
+                'Eoff 25℃': 'Eoff（uJ）', 'Eoff 175℃': 'Eoff 175℃（uJ）',
+                'Ets 25℃': 'Ets 25℃（uJ）', 'Ets 175℃': 'Ets 175℃（uJ）',
+                'QG_IGBT': 'QG(nc)', 'QGE': 'QGE(nc)', 'QGC': 'QGC(nc)',
+                'Qrr 25℃_IGBT': 'Qrr 25℃（uC）', 'Qrr 175℃_IGBT': 'Qrr 175℃',
             }
+            # 数据库 param 名 -> YAML 列名（用于行数据 key，保证与 YAML 列一致）
+            db_to_column = {'gfs_IGBT': 'gfs'}
             for old_name, new_name in legacy_mapping.items():
                 if new_name in [p.param_name for p in all_params]:
                     param_name_map[old_name] = new_name
@@ -1282,9 +1309,13 @@ class DatabaseManager:
                                 matched_name = param_name_map[normalized_name]
                         
                         if matched_name:
-                            param_values[matched_name] = value
+                            # 用 YAML 列名作为 key，便于与 param_names 对齐（如 gfs_IGBT -> gfs）
+                            store_key = db_to_column.get(matched_name, matched_name)
+                            if store_key in param_names:
+                                param_values[store_key] = value
+                            else:
+                                param_values[matched_name] = value
                         else:
-                            # 未匹配到标准参数，使用原始名称存储
                             param_values[r.param_name] = value
                     
                     # 提取型号和厂家
@@ -1308,8 +1339,7 @@ class DatabaseManager:
                 
                 # 填充各参数列
                 for param_name in param_names:
-                    if param_name == 'PDF文件名':
-                        # PDF文件名直接使用文件名
+                    if param_name in ('PDF文件名', '文件名'):
                         row[param_name] = pdf_name
                     elif param_name == '厂家':
                         # 优先使用解析结果中的厂家

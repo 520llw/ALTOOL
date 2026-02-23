@@ -1,8 +1,18 @@
 # Si MOSFET 提参注意文档
 # 自监督优化循环自动生成
-# 最后更新: 2026-02-12 16:15 (第3轮)
+# 最后更新: 2026-02-13 (第4轮)
 
 notes:
+- param: 厂家封装名
+  issue: 不完整 - AI可能只提取了一种封装，遗漏了其他封装类型
+  rule: "【封装提取规则】必须提取该器件所有可用封装类型，用逗号分隔。例如PDF中写'available in TO-247, TO-263-2, TO-220C and TO-220F packages'，则提取为'TO-247, TO-263-2, TO-220C, TO-220F'。搜索范围：1）首页产品描述中的封装信息；2）'Package Type'示意图标题；3）'Ordering Information'表格中所有封装列。如果PDF中只有一种封装则只填一种。"
+  verified: true
+  added_round: 4
+- param: OPN
+  issue: 不一致 - AI有时提取完整订货号(含封装后缀)，有时提取基础型号
+  rule: "【OPN提取规则】提取器件的基础通用型号（Base Part Number），不包含封装后缀、包装方式后缀或绿色标识后缀。例如：PDF标题为'SRC65R068BS'，则OPN应填'SRC65R068BS'。查找位置：优先取PDF标题/首页中最显眼的主型号名称。若PDF覆盖多个具体OPN（如不同封装变体），则取它们共同的基础型号部分。"
+  verified: true
+  added_round: 4
 - param: 认证
   issue: 遗漏：PDF中存在'Green'等认证信息关键词，但未作为'认证'参数提取。
   rule: 在文档的非表格区域（如首页、封底、备注部分）搜索'Green'、'RoHS'、'Halogen-free'等关键词。当发现这些关键词时，提取为'认证'参数，其值为关键词本身或相关描述（如'RoHS
@@ -70,9 +80,39 @@ notes:
   rule: 严格禁止推断、估算或使用常识填充参数值。每个参数值必须直接、明确地来源于PDF文档中紧邻参数名称或符号的文本或数字。如果PDF中某参数名称后无对应数值、或数值位置模糊无法确认，则将该参数标记为'未提供'或'无法提取'，绝不编造。
   verified: false
   added_round: 1
+- param: RthJC max
+  issue: 值错误 - Thermal Characteristics表格中RthJC有多行（不同封装），AI可能错取了TO-220F行(3.5)而非TO-247/TO-220C行(0.35)
+  rule: "【RthJC多封装表格规则】当Thermal resistance表格中RthJC按封装分多行时（如TO-220F、TO-220C、TO-247、TO-263），必须优先提取主封装（TO-247、TO-220C、TO-263）对应的数值（通常0.3~0.6°C/W）。TO-220F的RthJC通常为3.5°C/W量级，是小封装，禁止误取。若仅有一种封装则取该封装值。"
+  verified: true
+  added_round: 5
+- param: RthJA max
+  issue: 值错误 - RthJA表格按封装分多行时，AI可能错取TO-220F行(70)而非TO-247/TO-220C行(58)
+  rule: "【RthJA多封装表格规则】当RthJA按封装分多行时，优先提取TO-247、TO-220C、TO-263对应值（通常50~60°C/W）。TO-220F的RthJA约70°C/W，禁止误取。"
+  verified: true
+  added_round: 5
 - param: PD Tc=25℃
   issue: 遗漏：PDF中存在'PD'参数，但提取器未能识别和提取。
   rule: 在'Absolute Maximum Ratings'或'Thermal Characteristics'部分，首先在表格中查找'Power Dissipation'或'PD'行；若表格缺失，则结合'Power Dissipation'曲线图标题/图注中的额定功耗值。只在条件为'Tc=25℃'、'Case Temperature=25°C'或明显为外壳25°C时提取对应瓦数，禁止从瞬态曲线或Rth图中推断连续功耗。
   verified: false
   added_round: 1
+- param: '*'
+  issue: 温度严格匹配 - 必须严格按照参数清单中指定的温度条件提取
+  rule: "【重要-温度严格匹配规则】提取参数时，必须严格匹配参数清单中指定的温度条件。例如：要求'Ron 25℃'就只能提取Tj=25℃条件下的数值；要求'175℃'就只能提取Tj=175℃条件下的数值。如果PDF中没有对应温度条件的数据（例如PDF只有150℃而要求175℃），则该参数必须留空返回null，绝不允许用其他温度的数据替代。不同温度的数据不可互相混用。"
+  verified: true
+  added_round: 2
+- param: Qoss
+  issue: 幻觉 - AI将Coss(输出电容,单位pF)的值误填为Qoss(输出电荷,单位nC/μC)
+  rule: "【Qoss与Coss严格区分】Qoss(Output Charge)的单位是nC或μC，来自'Output Charge'或'Qoss'参数行。Coss(Output Capacitance)的单位是pF或nF，来自'Output Capacitance'或'COSS'参数行。两者绝不相同。如果PDF中只有Coss而无Qoss，则Qoss参数必须留空，禁止用Coss的值填充Qoss。"
+  verified: true
+  added_round: 6
+- param: 技术
+  issue: 遗漏 - PDF首页常有'trench technology'、'split gate'等工艺描述，但AI未提取为'技术'参数
+  rule: "【技术/工艺提取规则】在PDF首页或Features部分，搜索含'technology'、'process'、'structure'的描述，如'shielded gate trench DMOS'、'split gate trench'、'Super Junction'、'planar'等。提取该工艺名称作为'技术'参数值。"
+  verified: true
+  added_round: 6
+- param: ID TA=25℃
+  issue: 遗漏 - PDF中同时存在Package Limited和Silicon Limited两种ID，AI只提取了Silicon的值给ID Tc=25℃，遗漏了Package Limited的值
+  rule: "【ID TA=25℃ / Package Limited 提取规则】许多PDF在Absolute Maximum Ratings中将Continuous Drain Current分为两组：'Package Limited'和'Silicon Limited'。'ID Tc=25℃'对应Silicon Limited行的TC=25℃值（通常数值更大）；'ID TA=25℃'对应Package Limited行的TC=25℃值（通常数值更小）。两者都必须提取。如果PDF中只有一行ID（不区分Package/Silicon），则只填ID Tc=25℃，ID TA=25℃留空。"
+  verified: true
+  added_round: 7
 

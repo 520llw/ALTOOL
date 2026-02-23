@@ -139,7 +139,7 @@ class PDFParser:
                         # 提取产品摘要（通常在第一页）
                         if page_num == 0:
                             content.product_summary = self._extract_product_summary(cleaned_text)
-                            content.metadata = self._extract_metadata(cleaned_text)
+                            content.metadata = self._extract_metadata(cleaned_text, file_name=pdf_path.name)
                         
                         content.texts.append(extracted_text)
                     
@@ -183,7 +183,7 @@ class PDFParser:
                     
                     if page_num == 0:
                         content.product_summary = self._extract_product_summary(cleaned_text)
-                        content.metadata = self._extract_metadata(cleaned_text)
+                        content.metadata = self._extract_metadata(cleaned_text, file_name=str(pdf_path.name))
                     
                     content.texts.append(extracted_text)
                 
@@ -327,28 +327,41 @@ class PDFParser:
         
         return summary
     
-    def _extract_metadata(self, text: str) -> Dict[str, Any]:
+    def _extract_metadata(self, text: str, file_name: str = '') -> Dict[str, Any]:
         """提取PDF元数据（器件型号、厂家等）"""
         metadata = {}
         
         # 提取器件型号（通常是首行或显著位置的型号）
-        # 常见格式：LSGTxxxx, KJxxxx, IRFxxxx等
         opn_match = re.search(r'([A-Z]{2,}[\d]+[A-Z\d]*)', text[:500])
-        if opn_match:
-            metadata['opn'] = opn_match.group(1)
+        opn = opn_match.group(1) if opn_match else ''
+        if opn:
+            metadata['opn'] = opn
         
-        # 识别器件类型（注意优先级：IGBT > SiC MOSFET > Si MOSFET）
-        # IGBT必须最先检测，因为有些IGBT带SiC二极管（如"IGBT with SiC SBD"）
-        text_lower = text.lower()
-        if 'igbt' in text_lower:
+        text_lower = (text or '').lower()
+        
+        # 器件类型识别：型号规则 + 关键词，Super Junction 回退为 Si
+        # 注意：用 \bsic\b 单词边界匹配，避免 "intrinsic"/"basic" 等误触发
+        search_str = f"{opn} {file_name}".upper()
+        has_sic_keyword = bool(re.search(r'\bsic\b|silicon carbide', text_lower))
+        is_super_junction = 'super junction' in text_lower
+        if re.search(r'SRE\d+N', search_str):
             metadata['device_type'] = 'IGBT'
-        elif 'sic' in text_lower or 'silicon carbide' in text_lower:
-            # 确认是SiC MOSFET而不是带SiC二极管的IGBT
+        elif 'SRFIM' in search_str:
             metadata['device_type'] = 'SiC MOSFET'
+        elif re.search(r'SRC\d+R|SRC\d+[A-Z]', search_str):
+            # SRC 系列既有 SiC 也有 Si Super Junction；用文本关键词二次确认
+            if is_super_junction and not has_sic_keyword:
+                metadata['device_type'] = 'Si MOSFET'
+            else:
+                metadata['device_type'] = 'SiC MOSFET'
+        elif has_sic_keyword:
+            metadata['device_type'] = 'SiC MOSFET'
+        elif 'igbt' in text_lower:
+            metadata['device_type'] = 'IGBT'
         elif 'mosfet' in text_lower or 'power mosfet' in text_lower:
             metadata['device_type'] = 'Si MOSFET'
         else:
-            metadata['device_type'] = 'Si MOSFET'  # 默认
+            metadata['device_type'] = 'Si MOSFET'
         
         # 识别厂家 - 优先从网址识别（最准确）
         url_patterns = {
@@ -621,7 +634,7 @@ class PDFParser:
             for future in futures:
                 pdf_file = futures[future]
                 try:
-                    content = future.result(timeout=config.pdf.timeout)
+                    content = future.result(timeout=config.parser.pdf_timeout)
                     results.append(content)
                     completed += 1
                     

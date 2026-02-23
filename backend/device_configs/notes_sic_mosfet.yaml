@@ -1,8 +1,18 @@
 # SiC MOSFET 提参注意文档
 # 自监督优化循环自动生成
-# 最后更新: 2026-02-12 14:50 (第1轮)
+# 最后更新: 2026-02-13 (第2轮)
 
 notes:
+- param: 厂家封装名
+  issue: 不完整 - AI可能只提取了一种封装，遗漏了其他封装类型
+  rule: "【封装提取规则】必须提取该器件所有可用封装类型，用逗号分隔。搜索范围：1）首页产品描述中的封装信息；2）'Package Type'示意图标题；3）'Ordering Information'表格中所有封装列。若为SiC模块则提取模块封装（如SOP8）。如果PDF中只有一种封装则只填一种。"
+  verified: true
+  added_round: 2
+- param: OPN
+  issue: 不一致 - AI有时提取完整订货号(含封装后缀)，有时提取基础型号
+  rule: "【OPN提取规则】SiC单管：提取基础型号。SiC模块：模块通常以完整型号标识（如SRFIM75R65SOPB1GA-S02B），可提取完整型号或去掉包装后缀的基础部分。查找位置：PDF标题/首页主型号。"
+  verified: true
+  added_round: 2
 - param: Vgs min
   issue: 幻觉。AI可能将'VGS'的'Maximum Ratings'（如±20V）或'Gate-Source Voltage'的负向最大值错误解读为最小值。
   rule: 区分极限参数。'Vgs min'通常指保证器件关闭的负向栅极电压。仅在'Electrical Characteristics'或'Recommended
@@ -53,7 +63,7 @@ notes:
   added_round: 2
 - param: Ron 18V 175℃_type
   issue: 幻觉。AI可能将'RDS(on)'在25℃的典型值错误外推至175℃，或混淆了不同温度下的参数行。
-  rule: 温度条件严格校验。在'RDS(on)'参数行，必须找到测试条件明确为'VGS = 18 V'和'TJ = 175°C'（或'TJ = 150°C'等高温）的列，才提取该列的'Typ.'值。禁止跨温度条件赋值。
+  rule: 温度条件严格校验。在'RDS(on)'参数行，必须找到测试条件明确为'VGS = 18 V'和'TJ = 175°C'的列，才提取该列的'Typ.'值。禁止跨温度条件赋值，禁止用150℃或其他温度的值替代175℃。
   verified: false
   added_round: 1
 - param: 标准
@@ -111,3 +121,18 @@ notes:
     'On-Resistance'）进行搜索。对于图表，必须解析图标题、坐标轴标签、图内标注和数据点标签。
   verified: false
   added_round: 1
+- param: '*'
+  issue: 温度严格匹配 - 必须严格按照参数清单中指定的温度条件提取
+  rule: "【重要-温度严格匹配规则】提取参数时，必须严格匹配参数清单中指定的温度条件。例如：要求'Ron 175℃'就只能提取Tj=175℃条件下的数值；要求'Ron 25℃'就只能提取Tj=25℃条件下的数值。如果PDF中没有对应温度条件的数据（例如PDF只有150℃而要求175℃），则该参数必须留空返回null，绝不允许用其他温度的数据替代。不同温度的数据不可互相混用。"
+  verified: true
+  added_round: 2
+- param: Vgs max
+  issue: 遗漏 - PDF的Absolute Maximum Ratings中有'Gate-Source Voltage (VGSS) ±20V'但未提取为Vgs max
+  rule: "【Vgs max提取规则】在'Absolute Maximum Ratings'或'Maximum Ratings'表格中查找'Gate-Source Voltage'或'VGS'或'VGSS'行。如果值为'±20V'，则Vgs max提取为'±20V'（含正负号）。注意区分：Vgs max是额定最大栅源电压（来自Maximum Ratings），Vth是阈值电压（来自Electrical Characteristics），两者不同。"
+  verified: true
+  added_round: 6
+- param: Qoss
+  issue: 幻觉 - AI将Coss(输出电容,pF)误填为Qoss(输出电荷,nC)
+  rule: "【Qoss与Coss严格区分】Qoss(Output Charge)单位为nC或μC。Coss(Output Capacitance)单位为pF或nF。如果PDF中只有Coss而无明确的Qoss/Output Charge参数行，则Qoss必须留空，禁止用Coss的值填充。"
+  verified: true
+  added_round: 6

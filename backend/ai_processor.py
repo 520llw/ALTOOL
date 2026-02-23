@@ -28,22 +28,23 @@ logger = logging.getLogger(__name__)
 # 配置目录
 DEVICE_CONFIGS_DIR = Path(__file__).parent / 'device_configs'
 
-# 易漏参数：主流程未提取时，按需做一次补充提取（仅在有遗漏时触发，尽量不增加耗时）
+# 易漏参数：主流程未提取时，按需做一次补充提取（仅在有遗漏时触发）
+# 必须使用 YAML 中的标准参数名，与 si_mosfet/sic_mosfet/igbt.yaml 严格一致
 HIGH_RECALL_PARAMS = {
     'IGBT': [
-        'tdon 25℃', 'tr 25℃', 'tdoff 25℃', 'tf 25℃',
-        'Eon 25℃', 'Eoff 25℃', 'Ets 25℃',
+        'tdon 25℃（ns）', 'tr 25℃（ns）', 'tdoff 25℃（ns）', 'tf 25℃（ns）',
+        'Eon 25℃（uJ）', 'Eoff（uJ）', 'Ets 25℃（uJ）',
         'Erec 25℃',
     ],
     'Si MOSFET': [
         'Igss', 'PD Tc=25℃',
         'td-on', 'tr', 'td-off', 'tf',
-        'Eon', 'Eoff', 'EAS L=0.1mH',
+        'EAS L=0.1mH',
     ],
     'SiC MOSFET': [
         'Igss', 'PD Tc=25℃',
         'td-on', 'tr', 'td-off', 'tf',
-        'Eon', 'Eoff', 'EAS L=0.1mH',
+        'Eon', 'Eoff', 'Etot', 'Erec', 'EAS',
     ],
 }
 
@@ -202,22 +203,14 @@ class AIProcessor:
         key = ' '.join(key.split())
         return key
 
-    # IGBT 高温条件温度映射：不同厂家使用不同的高温条件
-    # 当 AI 返回 150°C/125°C 参数名时，映射到 175°C 标准名
-    _TEMP_EQUIVALENTS = {
-        '150c': '175c',
-        '125c': '175c',
-    }
-
     def _normalize_param_name(self, name: str, normalizer: Dict[str, str]) -> str:
         """
         用 normalizer 映射表将AI输出的参数名归一化为标准名
         
         匹配策略（按优先级）：
         1. 精确归一化匹配
-        2. 温度等价映射（150°C→175°C 等）
-        3. 去除温度后缀后匹配
-        4. 子串包含匹配（短名→长名）
+        2. 去除温度后缀后匹配
+        3. 子串包含匹配（短名→长名）
         """
         if not name:
             return name
@@ -228,16 +221,7 @@ class AIProcessor:
         if key in normalizer:
             return normalizer[key]
         
-        # 2. 温度等价映射：将 150°C/125°C 参数名转换为 175°C 后重新匹配
-        # 例如 AI 输出 "Eon 150°C" → normalize → "eon 150c" → 替换为 "eon 175c" → 匹配 "Eon 175℃"
-        for src_temp, dst_temp in self._TEMP_EQUIVALENTS.items():
-            if src_temp in key:
-                mapped_key = key.replace(src_temp, dst_temp)
-                if mapped_key in normalizer:
-                    logger.info(f"温度等价映射: '{name}' ({src_temp}→{dst_temp}) → '{normalizer[mapped_key]}'")
-                    return normalizer[mapped_key]
-        
-        # 3. 尝试去掉常见修饰词后匹配
+        # 2. 尝试去掉常见修饰词后匹配
         # 比如 AI 返回 "VCE(sat) typ" 但配置里是 "VCE(sat)-type (Tj=25℃)"
         for norm_key, std_name in normalizer.items():
             # 双向包含检查（要求至少4字符避免误匹配）
@@ -556,22 +540,31 @@ class AIProcessor:
             logger.warning(f"未找到 {device_type} 的参数配置，降级使用数据库参数")
             return await self._extract_with_db_params(pdf_content, params_info, structured_content, device_type)
 
-        # 4. 为每个分组创建并行任务
-        tasks = []
-        group_names = []
+        # 4. 拆分大组为 ≤15 参数的小组，提升提取质量
+        BATCH_SIZE = 15
+        split_groups = {}
         for group_name, params in param_groups.items():
             if not params:
                 continue
+            for i in range(0, len(params), BATCH_SIZE):
+                batch = params[i:i + BATCH_SIZE]
+                key = f"{group_name}_{i // BATCH_SIZE + 1}" if len(params) > BATCH_SIZE else group_name
+                split_groups[key] = batch
+
+        # 5. 为每个分组创建并行任务
+        tasks = []
+        group_names = []
+        for group_name, params in split_groups.items():
             group_names.append(group_name)
             prompt = self._build_prompt(structured_content, group_name, params, notes)
             tasks.append(self._call_api_async(prompt))
 
         logger.info(f"[{device_type}] 共 {len(tasks)} 个分组并行提取")
 
-        # 5. 并行执行
+        # 6. 并行执行
         responses = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # 6. 合并结果
+        # 7. 合并结果
         final_result = ExtractionResult(pdf_name=pdf_content.file_name, device_type=device_type)
         seen_params = {}
 
@@ -606,10 +599,10 @@ class AIProcessor:
         if not final_result.opn and pdf_content.metadata.get('opn'):
             final_result.opn = pdf_content.metadata['opn']
 
-        # 7. 名称归一化（将AI输出的变体名映射回配置标准名）
+        # 8. 名称归一化（将AI输出的变体名映射回配置标准名）
         final_result = self._normalize_results(final_result, device_type)
 
-        # 8. 易漏参数补充：仅在有遗漏时做一次小型补充提取，尽量不增加耗时
+        # 9. 易漏参数补充：仅在有遗漏时做一次小型补充提取，尽量不增加耗时
         high_recall = HIGH_RECALL_PARAMS.get(device_type, [])
         if high_recall:
             extracted_names = {p.standard_name for p in final_result.params}
@@ -636,6 +629,15 @@ class AIProcessor:
         logger.info(f"提取完成: {pdf_content.file_name} → {len(final_result.params)} 个参数")
         return final_result
 
+    def _get_high_recall_extra_hint(self, device_type: str) -> str:
+        """按器件类型返回易漏补充的搜索提示，与 YAML 参数表一致"""
+        hints = {
+            'Si MOSFET': "td-on、tr、td-off、tf、EAS L=0.1mH、Igss、PD Tc=25℃ 等",
+            'SiC MOSFET': "td-on、tr、td-off、tf、Eon、Eoff、Etot、Erec、EAS、Igss、PD Tc=25℃ 等",
+            'IGBT': "tdon 25℃、tr、tdoff、tf、Eon 25℃（uJ）、Eoff（uJ）、Ets、Erec 等",
+        }
+        return hints.get(device_type, "Rise time→tr、Fall time→tf 等")
+
     async def _extract_high_recall_pass(self, structured_content: str, pdf_name: str,
                                         device_type: str, param_groups: Dict,
                                         notes: List, missing_names: List[str]) -> Optional['ExtractionResult']:
@@ -649,8 +651,8 @@ class AIProcessor:
             return None
         group_name = "易漏参数补充"
         prompt = self._build_prompt(structured_content, group_name, params_to_extract, notes)
-        # 加强提示：这些参数常在 Switching/Electrical Characteristics 表中被漏掉
-        extra = "\n\n【重要】以上参数常被遗漏，请在 Dynamic characteristics、Switching characteristics、Electrical characteristics 等表格中逐行逐列搜索（如 Turn-on energy→Eon、Turn-off energy→Eoff、Rise time→tr、Fall time→tf、Erec 等），务必提取表格中存在的数值。"
+        hint = self._get_high_recall_extra_hint(device_type)
+        extra = f"\n\n【重要】以上参数常在 Dynamic characteristics、Switching characteristics、Electrical characteristics 等表格中被遗漏，请逐行逐列搜索（如 {hint}），务必提取表格中存在的数值。"
         prompt = prompt.replace("请逐项检查参数清单，提取所有能找到的参数：", "请逐项检查参数清单，提取所有能找到的参数：" + extra)
         response = await self._call_api_async(prompt)
         if not response:

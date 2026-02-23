@@ -1050,37 +1050,43 @@ def run_parsing_background(pdf_folder, user_id, ai_config, max_concurrent, share
         total_files = len(pdf_list)
         start_time = time.time()
         
-        # 阶段1: 解析PDF
+        # 阶段1: 解析PDF（使用带缓存的批量解析：MD5 去重 + 缓存命中加速）
         shared['status'] = f"解析PDF中 (0/{total_files})"
         shared['progress'] = 0
-        
-        pdf_contents = []
-        parse_failed = 0
-        for idx, pdf_info in enumerate(pdf_list):
+
+        def pdf_progress_cb(idx, total, name, status):
             if shared.get('cancel'):
-                shared['cancel'] = False
-                shared['parsing'] = False
-                shared['status'] = f"已取消 ({idx}/{total_files})"
                 return
-            try:
-                pdf_content = pdf_parser.parse_pdf(pdf_info['path'])
-                if pdf_content.error:
-                    parse_failed += 1
-                else:
-                    pdf_contents.append(pdf_content)
-            except Exception as e:
-                logger.error(f"解析PDF失败 {pdf_info.get('name', '')}: {e}")
-                parse_failed += 1
-            shared['progress'] = int((idx + 1) / total_files * 20)
-            shared['status'] = f"解析PDF ({idx + 1}/{total_files})"
-        
-        if not pdf_contents:
+            shared['progress'] = int((idx + 1) / total * 20) if total else 0
+            shared['status'] = f"解析PDF ({idx + 1}/{total})"
+
+        try:
+            pdf_contents = pdf_parser.batch_parse(
+                pdf_folder,
+                progress_callback=pdf_progress_cb,
+                use_cache=True
+            )
+        except Exception as e:
+            logger.error(f"批量解析失败: {e}")
+            shared['status'] = f"⚠️ 解析失败: {e}"
+            shared['parsing'] = False
+            return
+
+        if shared.get('cancel'):
+            shared['cancel'] = False
+            shared['parsing'] = False
+            shared['status'] = "已取消"
+            return
+
+        parse_failed = sum(1 for c in pdf_contents if c.error)
+        pdf_contents_ok = [c for c in pdf_contents if not c.error]
+        if not pdf_contents_ok:
             shared['status'] = "⚠️ 所有PDF解析失败"
             shared['parsing'] = False
             return
         
         # 阶段2: AI提取
-        shared['status'] = f"AI提取中 (0/{len(pdf_contents)})"
+        shared['status'] = f"AI提取中 (0/{len(pdf_contents_ok)})"
         
         def progress_callback(completed, total, pdf_name):
             shared['progress'] = 20 + int((completed / total) * 80)
@@ -1089,16 +1095,15 @@ def run_parsing_background(pdf_folder, user_id, ai_config, max_concurrent, share
         results = []
         try:
             results = ai_processor.batch_extract(
-                pdf_contents, 
-                params_info, 
+                pdf_contents_ok,
+                params_info,
                 max_concurrent=max_concurrent,
                 progress_callback=progress_callback
             )
         except Exception as e:
             logger.error(f"batch_extract 失败，降级为串行: {e}")
-            # 降级串行处理 — 逐个 try，一个失败不影响其他
             results = []
-            for idx, pdf_content in enumerate(pdf_contents):
+            for idx, pdf_content in enumerate(pdf_contents_ok):
                 try:
                     result = ai_processor.extract_params(pdf_content, params_info)
                     results.append(result)
@@ -1106,7 +1111,7 @@ def run_parsing_background(pdf_folder, user_id, ai_config, max_concurrent, share
                     logger.error(f"串行提取失败 {pdf_content.file_name}: {ex}")
                     from backend.ai_processor import ExtractionResult
                     results.append(ExtractionResult(pdf_name=pdf_content.file_name, error=str(ex)))
-                shared['progress'] = 20 + int((idx + 1) / len(pdf_contents) * 80)
+                shared['progress'] = 20 + int((idx + 1) / len(pdf_contents_ok) * 80)
         
         # 统计结果
         success_count = sum(1 for r in results if not r.error)
