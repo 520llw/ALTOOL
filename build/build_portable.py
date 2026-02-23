@@ -21,6 +21,14 @@ import subprocess
 import fnmatch
 from pathlib import Path
 
+# Windows 控制台默认 cp1252，无法打印中文，强制使用 UTF-8 避免 UnicodeEncodeError
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 # ============ 配置 ============
 PYTHON_VERSION = "3.10.11"
 PYTHON_EMBED_URL = f"https://www.python.org/ftp/python/{PYTHON_VERSION}/python-{PYTHON_VERSION}-embed-amd64.zip"
