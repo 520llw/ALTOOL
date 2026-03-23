@@ -1,53 +1,160 @@
-# ⚡ 功率器件参数提取系统
+# ⚡ ALTOOL V3.0 - 功率器件参数提取系统
 
-一款基于AI的功率半导体器件（MOSFET/IGBT/SiC MOSFET）PDF手册参数自动提取工具，支持批量处理、智能参数匹配、Excel导出。
+一款基于AI的功率半导体器件（MOSFET/IGBT/SiC MOSFET）PDF手册参数自动提取工具，支持批量处理、智能参数匹配、**多格式导出**、**RESTful API**、**现代化UI**。
+
+[![Version](https://img.shields.io/badge/version-3.0-blue.svg)](https://github.com/520llw/ALTOOL)
+[![Python](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
 ## 📋 功能特性
 
 ### 核心功能
 - **智能PDF解析**：使用pdfplumber + PyMuPDF双引擎，精准提取表格和文本
-- **AI参数提取**：支持通义千问(qwen-max)、OpenAI GPT等大模型
+- **AI参数提取**：支持通义千问(qwen-max)、OpenAI GPT、DeepSeek等大模型
 - **器件类型自动识别**：自动识别Si MOSFET、SiC MOSFET、IGBT
 - **参数标准化**：内置62+标准参数库，支持自定义参数和变体
 - **批量处理**：支持文件夹批量导入，多进程并行解析
-- **Excel分Sheet输出**：按器件类型分Sheet存储，方便查阅
 
-### 🆕 v2.0 新增特性
+### 🆕 V3.0 新增特性
 
-#### 性能优化
-- **MD5校验**：自动检测文件变更，避免重复解析相同文件
-- **缓存机制**：AI提取结果本地缓存，二次解析直接调用，速度提升300%+
-- **多进程解析**：支持4进程并行，100份PDF解析时间缩短30%+
-- **数据库索引**：查询速度提升50%+
+#### 🚀 多格式导出
+- **JSON导出**：便于系统集成和数据交换
+- **CSV导出**：便于数据分析和处理
+- **XML导出**：便于企业系统对接
+- **Excel导出**：保留原有功能，按器件类型分Sheet存储
 
-#### 用户体验
-- **系统仪表盘**：首页展示统计数据、图表、快捷操作入口
-- **实时进度显示**：解析时显示进度百分比、预计剩余时间、处理速度
-- **新手引导**：首次登录显示3步引导，快速上手
-- **友好提示**：错误提示包含原因和解决方案
+#### 🔌 RESTful API
+- **API服务**：基于Flask的轻量级RESTful API
+- **健康检查**：`/api/v3/health`
+- **PDF解析**：`/api/v3/parse`
+- **数据导出**：`/api/v3/export`
+- **器件列表**：`/api/v3/devices`
+- **统计信息**：`/api/v3/stats`
 
-#### 安全加固
-- **密码强度检测**：实时显示密码强度（弱/中/强）
-- **输入过滤**：防止SQL注入和路径遍历攻击
-- **登录保护**：失败5次锁定10分钟
+#### 🎨 现代化UI
+- **渐变设计**：紫色渐变背景，现代化视觉效果
+- **卡片动画**：悬停上浮、阴影变化
+- **统计面板**：4个彩色统计卡片展示
+- **响应式布局**：自适应不同屏幕尺寸
+- **流畅动画**：页面元素优雅淡入效果
 
-#### 数据管理
-- **数据备份**：支持手动备份和定时自动备份
-- **日志分级**：INFO/WARNING/ERROR分级管理
-- **配置热加载**：修改config.yaml无需重启
+#### 🧠 AI优化
+- **Prompt V3.0**：更精确的提取指令
+- **常见陷阱提醒**：减少提取错误
+- **数值验证机制**：自动检查合理性
+
+### ✅ V2.0 特性（保留）
+- **MD5校验**：自动检测文件变更，避免重复解析
+- **缓存机制**：AI提取结果本地缓存，速度提升300%+
+- **多进程解析**：支持4进程并行
+- **系统仪表盘**：首页展示统计数据、图表
+- **实时进度**：显示进度百分比、预计剩余时间
+- **安全加固**：密码强度检测、登录保护
 
 ## 🖥️ 系统要求
 
 - **操作系统**：Windows 10/11、Ubuntu 20.04+、macOS 10.15+
 - **Python**：3.8 或更高版本
 - **内存**：建议 8GB 以上
-- **网络**：需要访问AI API（通义千问/OpenAI）
+- **网络**：需要访问AI API（通义千问/OpenAI/DeepSeek）
 
 ## 🚀 快速开始
 
 ### 1. 安装依赖
 
 ```bash
+pip install -r requirements.txt
+```
+
+### 2. 启动应用
+
+**方式一：Web界面（Streamlit）**
+```bash
+# 新版UI
+streamlit run main_v3.py
+
+# 或原版UI
+streamlit run main.py
+```
+
+**方式二：API服务（Flask）**
+```bash
+python api_server.py
+# API文档：http://localhost:5000
+```
+
+### 3. 使用系统
+
+1. 打开浏览器访问 `http://localhost:8501`（Web）或 `http://localhost:5000`（API）
+2. 使用默认账号登录：admin / admin123
+3. 在**仪表盘**查看系统概览
+4. 在**参数管理**页面点击「初始化参数库」导入标准参数
+5. 在**解析任务**页面上传PDF文件
+6. 点击「开始批量解析」，等待AI提取参数
+7. 选择导出格式（JSON/CSV/XML/Excel）导出结果
+
+## 📡 API使用示例
+
+```bash
+# 健康检查
+curl http://localhost:5000/api/v3/health
+
+# 解析PDF
+curl -X POST -F "file=@datasheet.pdf" \
+  -F "device_type=Si MOSFET" \
+  http://localhost:5000/api/v3/parse
+
+# 导出JSON
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"data": [...], "format": "json", "filename": "export"}' \
+  http://localhost:5000/api/v3/export \
+  --output export.json
+```
+
+## 📁 项目结构
+
+```
+ALTOOL/
+├── main.py                    # Streamlit主程序（原版）
+├── main_v3.py                 # 🆕 Streamlit主程序（V3.0美化版）
+├── api_server.py              # 🆕 Flask API服务
+├── config.yaml                # 全局配置文件
+├── V3_CHANGELOG.md            # 🆕 V3.0更新说明
+├── backend/                   # 后端核心模块
+│   ├── config.py              # 配置管理
+│   ├── db_manager.py          # 数据库操作
+│   ├── pdf_parser.py          # PDF解析
+│   ├── ai_processor.py        # AI调用与参数提取
+│   ├── data_writer.py         # Excel写入
+│   ├── exporter.py            # 🆕 多格式导出模块
+│   ├── prompt_v3.py           # 🆕 V3.0 Prompt模板
+│   └── device_configs/        # 器件配置
+├── frontend/                  # 🆕 前端组件
+│   └── ui_v3.py               # V3.0 UI组件库
+├── data/                      # 数据目录
+├── logs/                      # 日志目录
+└── tests/                     # 测试文件
+```
+
+## 🔄 版本历史
+
+| 版本 | 日期 | 主要更新 |
+|:---:|:---:|:---|
+| V3.0 | 2025-03 | 多格式导出、RESTful API、现代化UI、Prompt优化 |
+| V2.0 | 2025-01 | MD5校验、缓存机制、多进程、仪表盘、安全加固 |
+| V1.0 | 2024-12 | 基础功能、PDF解析、AI提取、Excel导出 |
+
+## 🤝 贡献
+
+欢迎提交Issue和Pull Request！
+
+## 📄 许可证
+
+MIT License
+
+---
+
+**⭐ 如果这个项目对你有帮助，请给个Star！**
 # 克隆或下载项目后进入目录
 cd AITOOL
 
