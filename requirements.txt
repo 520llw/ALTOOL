@@ -15,6 +15,8 @@ SQLAlchemy>=2.0.0
 
 # Web框架
 streamlit>=1.30.0
+flask>=3.0.0
+flask-cors>=4.0.0
 
 # 异步处理
 aiofiles>=23.0.0
