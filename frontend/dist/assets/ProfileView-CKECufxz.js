@@ -1,0 +1,2 @@
+import{_ as t,f as r,c as n,b as c,w as a,g as s,e as l}from"./index-Basq2oSC.js";const d={},_={class:"profile-view"};function i(f,e){const o=l("el-card");return r(),n("div",_,[c(o,null,{header:a(()=>[...e[0]||(e[0]=[s("div",{class:"card-header"},[s("span",null,"个人设置")],-1)])]),default:a(()=>[e[1]||(e[1]=s("p",null,"个人设置功能开发中...",-1))]),_:1})])}const u=t(d,[["render",i],["__scopeId","data-v-2cca02c4"]]);export{u as default};
+//# sourceMappingURL=ProfileView-CKECufxz.js.map

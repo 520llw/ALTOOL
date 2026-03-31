@@ -15,6 +15,12 @@ SQLAlchemy>=2.0.0
 
 # Web框架
 streamlit>=1.30.0
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.6
+python-jose[cryptography]>=3.3.0
+pydantic-settings>=2.1.0
+loguru>=0.7.0
 
 # 异步处理
 aiofiles>=23.0.0

@@ -35,7 +35,7 @@ class AIConfig:
     """AI模型配置"""
     provider: str = "deepseek"  # deepseek / openai / local
     model: str = "deepseek-chat"  # 模型名称
-    api_key: str = "sk-d8e93ebf7010489ab9ad97ba4aa9a23a"  # 默认API密钥
+    api_key: str = os.environ.get("AI_API_KEY", os.environ.get("API_KEY", ""))  # 从环境变量读取
     api_base: str = "https://api.deepseek.com/v1"  # API基础URL
     timeout: int = 60  # 请求超时时间（秒）
     max_retries: int = 3  # 最大重试次数

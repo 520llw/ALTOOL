@@ -61,7 +61,8 @@ ai:
   # 默认模型
   default_model: "deepseek-chat"
   # 默认API密钥（用户未配置时使用）
-  default_api_key: "sk-d8e93ebf7010489ab9ad97ba4aa9a23a"
+  # 建议通过环境变量 AI_API_KEY 设置，留空则要求用户自行配置
+  default_api_key: "${AI_API_KEY}"
   # 温度参数（0-1，越低越稳定）
   temperature: 0
   # 最大token数（DeepSeek最大支持8192）
